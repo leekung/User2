@@ -4,6 +4,7 @@ namespace Modules\User\Entities\Sentinel;
 
 use Cartalyst\Sentinel\Laravel\Facades\Activation;
 use Cartalyst\Sentinel\Users\EloquentUser;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Laracasts\Presenter\PresentableTrait;
 use Modules\User\Entities\UserInterface;
 use Modules\User\Entities\UserToken;
@@ -101,6 +102,34 @@ class User extends EloquentUser implements UserInterface
         }
 
         return $userToken->access_token;
+    }
+
+    /**
+     * @param string $key
+     * @return \Illuminate\Database\Eloquent\Model|HasOne|mixed
+     */
+    public function __get($key)
+    {
+        #i: Convert array to dot notation
+        $config = implode('.', ['asgard.user.config.relations', $key]);
+
+        #i: Relation method resolver
+        if (config()->has($config)) {
+            $function = config()->get($config);
+            $relation = $function($this);
+
+            if ($relation instanceof Model) {
+                return $relation;
+            } else if ($relation instanceof HasOne) {
+                return $relation->firstOrNew([]);
+            } else if ($relation instanceof hasMany) {
+                return $relation->getResults();
+            }
+
+            return $relation->getResults();
+        }
+
+        return parent::__get($key);
     }
 
     public function __call($method, $parameters)
